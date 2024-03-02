@@ -1,0 +1,512 @@
+---
+title: "Build and deploy a stroke prediction model using R"
+author: "Gershon Tetteh Amanor"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+bibliography: references.bib
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+# About Data Analysis Report
+
+This RMarkdown file contains the report of the data analysis done for the project on building and deploying a stroke prediction model in R.
+It contains analysis such as data exploration, summary statistics and building the prediction models.
+The final report was completed on `r date()`.
+
+**Data Description:**
+
+According to the World Health Organization (WHO) stroke is the 2nd leading cause of death globally, responsible for approximately 11% of total deaths.
+
+This data set is used to predict whether a patient is likely to get stroke based on the input parameters like gender, age, various diseases, and smoking status.
+Each row in the data provides relevant information about the patient.
+
+# Task One: Import data and data preprocessing
+
+### Load data and install packages
+
+```{r}
+#url <- "https://raw.githubusercontent.com/Gershom-Tetteh-Amanor/healthcare-dataset-stroke-data/main/healthcare-dataset-stroke-data.csv"
+#file <- read.csv(url)
+
+file <- read.csv(file='C:\\Users\\user\\Desktop\\LANGUAGES\\R\\R IN ACTION\\R Project with coursera\\healthcare-dataset-stroke-data.csv')
+
+
+### Viewing first and last six observations of the dataset ###
+
+head(file);tail(file)
+```
+
+## Describe and explore the data
+
+i.  Observations with unknown smoking status are more or less like NAs so we treat them as such.
+
+```{r}
+file[file$smoking_status=="Unknown",] <- NA
+```
+
+ii. Removing observations with NA responses
+
+```{r}
+library(tidyr)
+complete_record <- drop_na(file)
+```
+
+iii. Since the unique ID is not required in the predictions, we drop it
+
+```{r}
+complete_record <- complete_record[,-1]
+```
+
+iv. Making sure the variables are in the right data types
+
+```{r}
+library(dplyr)
+clean_records <- mutate(complete_record,
+                      gender = factor(gender),
+                      age = as.numeric(age),
+                      hypertension = factor(hypertension),
+                      heart_disease = factor(heart_disease),
+                      ever_married = factor(ever_married),
+                      work_type = factor(work_type),
+                      Residence_type = factor(Residence_type),
+                      avg_glucose_level = avg_glucose_level,
+                      bmi = as.numeric(bmi),
+                      smoking_status = factor(smoking_status),
+                      stroke = factor(stroke)
+)
+```
+
+### Describing the dataset
+
+```{r}
+library(skimr)
+skim(clean_records)
+```
+
+There are total of 3426 observations and 11 variables after the cleaning of the dataset.
+Out of the 11 variables, 3 are numeric and 8 are factors.
+
+### Frequency Table (in percentage) for Gender
+
+```{r}
+(round(prop.table(table(clean_records$gender)),4)*100)
+barplot(table(clean_records$gender),
+        col = c('green','purple','red'),
+        main = "A bar plot for Gender",
+        xlab = 'Gender',
+        ylab = 'Frequncy')
+```
+
+There are more females than males and more males than other sex in the dataset provided.
+
+### Frequency Table (in percentage) for Hypertension
+
+```{r}
+(round(prop.table(table(clean_records$hypertension)),4)*100)
+barplot(table(clean_records$hypertension),
+        col = c('green','red'),
+        main = "A bar plot for Hypertension",
+        xlab = 'Has Hypertension',
+        ylab = 'Frequncy');legend('topright',legend = c("0 = No","1 = Yes"),text.col = c('green','red'),fill = c('green','red'))
+
+```
+
+There are fewer people with hypertension constituting approximately 12% of the total observations and approximately 88% without hypertension.
+
+### Frequency Table (in percentage) for Heart disease
+
+```{r}
+(round(prop.table(table(clean_records$heart_disease)),4)*100)
+barplot(table(clean_records$heart_disease),
+        col = c('blue','red'),
+        main = "A bar plot for Heart disease",
+        xlab = 'Has Heart disease',
+        ylab = 'Frequncy');legend('topright',legend = c("0 = No","1 = Yes"),text.col = c('blue','red'),fill=c('blue','red'))
+
+```
+
+Very few people of approximately 6% of the total observations have heart diseases.
+
+### Frequency Table (in percentage) for Ever married
+
+```{r}
+(round(prop.table(table(clean_records$ever_married)),4)*100)
+barplot(table(clean_records$ever_married),
+        col = c('#bbf001','#00fccf'),
+        main = "A bar plot for Ever married ",
+        xlab = 'Has Ever married ',
+        ylab = 'Frequncy')
+```
+
+Most people are married (Have ever married)
+
+### Frequency Table (in percentage) for Work type
+
+```{r}
+(round(prop.table(table(clean_records$work_type)),4)*100)
+barplot(table(clean_records$work_type),
+        col = c('#bbf001','#00fccf','#ffbb00','#bb01ff','#bbbbfb'),
+        main = "A bar plot for Work type",
+        xlab = 'Work type ',
+        ylab = 'Frequncy')
+```
+
+Majority are Private sector workers, followed by self-employed and then Government workers.
+Few are children and very few have never worked.
+
+### Frequency Table (in percentage) for Residence type
+
+```{r}
+(round(prop.table(table(clean_records$Residence_type)),4)*100)
+barplot(table(clean_records$Residence_type),
+        col = c('orange','#00fccf'),
+        main = "A bar plot for Residence type",
+        xlab = 'Residence type',
+        ylab = 'Frequncy')
+```
+
+There appropriately equal number of people at the Rural areas as there are at the Urban areas.
+
+### Frequency Table (in percentage) for Smoking status
+
+```{r}
+(round(prop.table(table(clean_records$smoking_status)),4)*100)
+barplot(table(clean_records$smoking_status),
+        col = c('orange','#00fccf','#bb01ff'),
+        main = "A bar plot for Smoking status",
+        xlab = 'Smoking status',
+        ylab = 'Frequncy')
+```
+
+Approximately, about half of the total observations never smoked, about one-forth formerly smoked and about one-fith smokes.
+
+### Frequency Table (in percentage) for Stroke
+
+```{r}
+(round(prop.table(table(clean_records$stroke)),4)*100
+        );barplot(table(clean_records$stroke),
+        col = c("green","red"),
+        main = "A bar plot for Stroke",
+        xlab = 'Stroke',
+        ylab = 'Frequncy');legend('topright',legend = c("0 = No","1 = Yes"),text.col = c('green','red'),fill=c('green','red'))
+```
+
+About 95% of the people do not have stroke, thus only a few have stroke.
+
+## We check the correlation between some of the variables
+
+### a. Hypertension and heart disease
+
+Constructing a contingency table for Hypertension and heart disease.
+
+```{r}
+cont.tab1=with(clean_records,table('Hypertension'=hypertension,
+                'Heart Disease'=heart_disease))
+
+library(gmodels)
+CrossTable(cont.tab1,chisq = F,expected = F,
+           prop.r=F,prop.c=F,prop.t=F,prop.chisq = F,
+           mcnemar = F,fisher = F,format = 'SPSS')
+```
+
+#### Chi square test of independency
+
+null hypothesis: Hypertension and heart disease are independent.
+alternative hypothesis: Hypertension and heart disease are not independent.
+
+```{r}
+chi1 = chisq.test(cont.tab1);chi1
+```
+
+We write a function to check if there exist significant relationship
+
+```{r}
+Decision.test.result = function(alpha,p.value)
+{
+  if(alpha>p.value){
+    res = 'There is no significant relationship'
+  }else
+  {
+    res = 'There is significant relationship'
+  }
+  return(res)
+}
+Decision.test.result(alpha=0.05,p.value=chi1$p.value)
+```
+
+Cramer’s V contingency coefficient to measure the strength of the association between hypertension and heart diseases
+
+```{r}
+library(DescTools)
+CramerV(cont.tab1 ,conf.level = 0.05)
+```
+
+There is a weak association between hypertension and heart diseases.
+
+### b. Avg glucose level and B.M.I
+
+#### Correlation test of association
+
+null hypothesis: true correlation is equal to 0.
+alternative hypothesis: true correlation is not equal to 0.
+
+```{r}
+chi2 = cor.test(clean_records$avg_glucose_level,clean_records$bmi);chi2
+
+Decision.test.result(alpha=0.05,p.value=chi2$p.value)
+```
+
+#### Cramer’s V contingency coefficient to measure the strength of the association between Average glucose level and bmi.
+
+```{r}
+cor(clean_records$avg_glucose_level,clean_records$bmi)
+```
+
+There is a weak level of association between Average glucose level and bmi.
+
+### c. Smoking status and heart disease
+
+Constructing a contingency table for Smoking status and heart disease.
+
+```{r}
+cont.tab3=with(clean_records,table('Smoking status'=smoking_status,
+                'Heart Disease'=heart_disease))
+
+CrossTable(cont.tab3,chisq = F,expected = F,
+           prop.r=F,prop.c=F,prop.t=F,prop.chisq = F,
+           mcnemar = F,fisher = F,format = 'SPSS')
+```
+
+### Chi square test of independence
+
+null hypothesis: smoking status and heart disease are independent.
+alternative hypothesis: smoking status and heart disease are not independent.
+
+```{r}
+chi3 = chisq.test(cont.tab3);chi3
+
+Decision.test.result(alpha=0.05,p.value=chi3$p.value)
+
+CramerV(cont.tab3 ,conf.level = 0.05)
+```
+
+Weak relationship between smoking status and heart diseases
+
+### d. Smoking status and Hypertension
+
+Constructing a contingency table for Smoking status and Hypertension.
+
+```{r}
+cont.tab4=with(clean_records,table('Smoking status'=smoking_status,
+                'Hypertension'=hypertension))
+
+CrossTable(cont.tab4,chisq = F,expected = F,
+           prop.r=F,prop.c=F,prop.t=F,prop.chisq = F,
+           mcnemar = F,fisher = F,format = 'SPSS')
+```
+
+### Chi square test of independence
+
+null hypothesis: Smoking status and Hypertension are independent.
+alternative hypothesis: Smoking status and Hypertension are not independent.
+
+```{r}
+chi4 = chisq.test(cont.tab4);chi4
+
+Decision.test.result(alpha=0.05,p.value=chi4$p.value)
+
+CramerV(cont.tab4 ,conf.level = 0.05)
+```
+
+# Task Two: Build prediction models
+
+### 1. Iterative Dichotomiser 3 (ID3) Algorithm.
+
+"The basic idea of ID3 algorithm is to construct the decision tree by employing a top-down, greedy search through the given sets to test each attribute at every tree node."
+
+```{r}
+### Loading the needed packages
+library('rpart')      # partition the tree
+library('rpart.plot') # For ploting the tree
+library('caTools')    # General manipulation of the data
+
+### Splitting the data into training and testing sets
+### 70% for training set and 30% for the testing set
+set.seed(777) # Setting the seed
+sample <- sample.split(clean_records$stroke, SplitRatio = .70)
+train <- subset(clean_records,  sample==TRUE)
+test <- subset(clean_records, sample==FALSE)
+
+### Training the decision tree classifier
+tree.id3 = rpart(stroke~.,
+              data=train,
+              method = 'class',
+             control = rpart.control(cp = 0.05))
+
+### Prediction
+tree.stroke.predicted.id3 = predict(tree.id3,test,type = 'class')
+
+rpart.plot(tree.id3)
+
+```
+
+### 2. Naive Baye's.
+
+"The Naïve Baye's classifier is a supervised machine learning algorithm, which is used for classification tasks, like text classification. It is also part of a family of generative learning algorithms, meaning that it seeks to model the distribution of inputs of a given class or category."
+
+```{r}
+library(caret) # partition and performance evaluation
+library(klaR) # Naive Bayes analysis
+library(pROC) # graphics
+library(e1071)
+ctrl <- trainControl(method = "cv",number = 10)
+tree.naive <- naiveBayes(stroke~.,
+               data=train, laplace=10)
+tree.stroke.predicted.naive = predict(tree.naive,test)
+
+plot(tree.naive$levels)
+
+```
+
+### 3. Decision Tree
+
+"A decision tree is a decision support hierarchical model that uses a tree-like model of decisions and their possible consequences, including chance event outcomes, resource costs, and utility. It is one way to display an algorithm that only contains conditional control statements."
+
+```{r}
+## Decision Tree training 
+library(partykit)
+Decision_tree<-ctree(stroke~. ,-avg_glucose_level-bmi, data = train)
+tree.stroke.predicted.dtree = predict(Decision_tree,test,type = 'response')
+
+plot(Decision_tree)
+
+```
+
+### 4. Random Forest training
+
+```{r}
+## Random Forest training 
+library(dplyr)
+library(randomForest)
+
+tree.forest <- randomForest(stroke~.,
+                            data = train,
+                            ntree=1)
+tree.stroke.predicted.forest = predict(tree.forest,test,type = 'response')
+
+plot(tree.forest)  
+
+```
+
+# Task Three: Evaluate and select prediction models
+
+### 1. Iterative Dichotomiser 3 (ID3) Algorithm.
+
+```{r}
+# Confusion matrix to evaluate the model 
+conf_test.id3 = confusionMatrix(tree.stroke.predicted.id3,test$stroke);conf_test.id3
+
+```
+
+### 2. Naïve Bayes.
+
+```{r}
+# Confusion matrix to evaluate the model 
+conf_test.naive = confusionMatrix(tree.stroke.predicted.naive,test$stroke);conf_test.naive
+
+```
+
+### 3. Decision Tree
+
+```{r}
+# Confusion matrix to evaluate the model 
+conf_test.dtree = confusionMatrix(tree.stroke.predicted.dtree,test$stroke);conf_test.dtree
+
+```
+
+### 4. Random Forest
+
+```{r}
+# Confusion matrix to evaluate the model 
+conf_test.forest = confusionMatrix(tree.stroke.predicted.forest,test$stroke);conf_test.forest
+
+```
+
+Although the ID3 and the Decision tree algorithms have the highest accuracy of 94.75%,followed by the random forest with 94.16%, I would go for the Naïve Bayes algorithm because it has the highest precision (Balanced accuracy) of 60.60% making it the perfect classifier compared to the other three algorithms of 50.00% precision for the ID3 and the decision tree and 49.69% for the random forest.
+
+# Task Four: Deploy the prediction model
+
+[Link to the deployment file](https://github.com/Gershom-Tetteh-Amanor/healthcare-dataset-stroke-data/blob/main/Naive%20Baye's%20model%20deploy.R "Deploying the Naïve Bayes model")
+
+# Task Five: Findings and Conclusions
+
+### learning throughout the process
+
+The data set provided contained some observations with NAN responses and also, most of the variables were not in the right format, most of which are supposed to be categorical were coded as numerical.
+The data set was cleaned in considerations to the above issues using some r packages [@tidyr; @dplyr ].
+The data was explored with functions, tables and visualizations to gain insight into the dataset using some r packages [@gmodels; @skimr; @DescTools].
+These includes bar graphs, contingency tables and correlation coefficients.
+Subsequently, four prediction models were trained, namely, Iterative Dichotomiser 3 (ID3) Algorithm, Naïve Baye's, Decision tree and Random forest for the prediction of stroke.
+The dataset was splitted into two, seventy percent (70%) was assigned to the training set, which was used to train the algorithms and the thirty percent was assigned to test set which was used to evaluate the models.
+In evaluating the models, one of the several metrics seemed striking in this study since it is a clinical model design.
+This metric is the **precision** which is defined as the level of true predictions.
+The random forest algorithm was 49.69% precise in the prediction, 50.00% for the ID3 algorithm and the Decision tree and 60.60% for the naive Baye's algorithm making it the better prediction model in the clinical field compared to the other three.
+Although it is quite low, it is more reliable.
+Finally, the selected model, naive Baye's was deployed via an API using vetiver package in r studio [@vetiver].
+
+### Key Findings {#key-findings}
+
+In training the model, it was found out that;
+
+a\.
+about 94.75% do not have stroke while 5.25% have stroke.
+
+b\.
+Given that a patient has stroke, there's about 65.08% chance that it's a female, 34.92% chance of being a male and 0.00% chance of being of other gender.
+Given that a patient does not have stroke, there's about 60.48% chance that it's a female, 39.52% chance of being a male and 0.00% chance of being of other gender.
+
+c\.
+Given that a patient has stroke, on average, ages about 68 years with a variation of about 12 years.
+And given that a patient does not have stroke, on average, ages about 48 years and a variation of 19 years.This implies that most adult aged 50 plus have a higher chance of stroke.
+
+d\.
+Given that a patient has stroke, there is about 32.19% chance of having hypertension and about 67.81% chance of being hypertension free.
+Given that a patient does not have stroke, there is about 11.17% chance of hypertension and about 88.83% chance of being hypertension free.
+This implies that most stroke-free patients are as well hypertension-free.
+
+e\.
+Given that a patient has stroke, there is about 24.66% chance of having a heart disease and about 75.34% chance of being heart disease-free.
+Given that a patient does not have stroke, there is about 5.72% chance of heart disease and about 94.28% chance of being heart disease-free.
+This implies that most stroke-free patients are as well heart disease-free.
+
+f\.
+Given that a patient has stroke, there is about 85.62% chance that they are married and about 14.38% chance of not marriages.
+Given that a patient is stroke-free, there is about 75.74% chance that they are married and about 25.83% chance of no marriage.
+This implies that most stroke patients are married.
+
+g\.
+Given that a patient has stroke, there is about 5.68 chance of being a child, about 15.91 % chance of being a Government worker, about 5.68 chance of never worked, about 46.06% chance of being a private worker and about 26.70% chance of being self-employed.
+Given that a patient does not have stroke, there is about 2.41% chance of being a child, about 16.02% chance of being a Government worker, about 0.86% chance of never worked, about 62.49% chance of being a private worker and about 18.22% chance of being self-employed.
+
+h\.
+Given that a patient has stroke, there is about 48.63% chance of being a resident at a rural area and about 51.37% chance of being a resident at an urban area.
+Given that a patient does not have stroke, there is about 49.52% chance of being a resident of at a rural area and about 50.48% chance of being a resident at an urban area.
+
+i\.
+Given that a patient has stroke, the patient on average, has a glucose level of about 136.51 with a variation of about 62.95.
+Given that a patient does not have stroke, the patient on average, has a glucose level of about 107.64 and a variation of about 47.20.
+This implies that patients with average glucose level greater than 120.00 have a higher chance of stroke than those with lower average glucose level.
+
+j\.
+Given that a patient has stroke, the patient on average, has a bmi of about 30.87 with a variation of about 6.79.
+Given that a patient does not have stroke, the patient on average, has a bmi of about 30.25 and a variation of about 7.30.
+This implies that patients with bmi is not a very much reliable variable for predicting stroke since the average for stroke and stroke-free patients are almost the same.
+
+k\.
+Given that a patient has stroke, there is about 32.69% chance that they formerly smoked, about 43.59% chance that they never smoked and about 23.72% chance that they smokes.
+Given that a patient does not have stroke, there is about 23.50% chance that they formerly smoked, about 54.30% chance that they never smoked and about 22.20% chance that they smokes
