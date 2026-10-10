@@ -162,7 +162,7 @@ To run the API on your local machine, follow these steps:
 
 ## Author
 
-**Mr. Gershon Tetteh Yaw Amanor**
+**Mr. Gershon Tetteh Amanor**
 
 - [GitHub Profile](https://github.com/Gershom-Tetteh-Amanor)
 - [LinkedIn Profile](https://www.linkedin.com/in/gershon-tetteh-amanor-a9a302268?utm_source=share_via&utm_content=profile&utm_medium=member_android)
